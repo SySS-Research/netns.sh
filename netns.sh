@@ -119,12 +119,16 @@ function delete_netns() {
     if ! netns_exists "${ns_name}"; then
         return
     fi
-    ip netns exec "${ns_name}" "${script}" 'down' "${interface}" || \
-        echo_warning "Warning: Unable to bring '${interface}' down with ${script}."
+    if [[ -n "${script}" ]]; then
+        ip netns exec "${ns_name}" "${script}" 'down' "${interface}" || \
+            echo_warning "Warning: Unable to bring '${interface}' down with ${script}."
+    fi
     # Remove the (physical) interface from the netns.
     # This should only be required if some process is still running in the namespace.
-    ip netns exec "${ns_name}" ip link set dev "${interface}" netns 1 || \
-        echo_warning "Warning: Unable to remove '${interface}' from the namespace."
+    if [[ -n "${interface}" ]]; then
+        ip netns exec "${ns_name}" ip link set dev "${interface}" netns 1 || \
+            echo_warning "Warning: Unable to remove '${interface}' from the namespace."
+    fi
     # Remove the namespace-specific resolv.conf file
     rm -f "/etc/netns/${ns_name}/resolv.conf" || \
         echo_warning 'Warning: Unable to remove resolv.conf for the network namespace.'
