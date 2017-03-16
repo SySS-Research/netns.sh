@@ -86,7 +86,7 @@ function create_netns() {
 
 
 # Connect a network namespace via a (physical) interface.
-# connect_netns <name> <interface>
+# connect_netns <name> <interface> <script>
 function connect_netns() {
     ns_name="$1"
     interface="$2"
@@ -103,8 +103,10 @@ function connect_netns() {
     echo "interface:${interface}" >> "${state_file}_${ns_name}"
     echo "script:${script}" >> "${state_file}_${ns_name}"
     # Configure the network.
-    ip netns exec "${ns_name}" "${script}" 'up' "${interface}" || \
-        echo_error 11 "Fatal: Unable to configure network with '${script}'."
+    if [[ -n "${script}" ]]; then
+        ip netns exec "${ns_name}" "${script}" 'up' "${interface}" || \
+            echo_error 11 "Fatal: Unable to configure network with '${script}'."
+    fi
     return 0
 }
 
@@ -173,12 +175,13 @@ function usage() {
 cat <<EOH
 Usage: ${me} <command> [<parameters>]
  Commands:
-  start [-s|--script <command>] [<name>] <interface>
+  start [-s|--script <command>|none] [<name>] <interface>
       Creates the namespace and moves the interface into the namespace.
       The interface will not be available outside of the namespace.
       Use --script to select a command to bring up and down the interface
       within the namespace. It will be invoked with the parameter 'up' or
       'down' respectively and the name of the interface.
+      If script is 'none' the interface is left unconfigured.
       If script is not given '${script}' is assumed.
   stop [<name>]
       Removes the namespace and frees the interface.
@@ -208,6 +211,9 @@ case "$1" in
         shift
         if [[ "$1" == '-s' ]] || [[ "$1" == '--script' ]]; then
             script="$2"
+            if [[ "${script}" == 'none' ]]; then
+                script=''
+            fi
             shift
             shift
         fi
