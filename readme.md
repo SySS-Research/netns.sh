@@ -14,6 +14,7 @@ Requirements
 * iproute2
 * dhclient (optional, package `net-misc/dhcp` on Gentoo,
    `isc-dhcp-client` on Debian, `extra/dhclient` on Arch)
+* iw (optional)
 
 Installation
 ============

@@ -56,6 +56,25 @@ function netns_exists() {
 }
 
 
+# Check if a given network interface is wireless
+# is_wireless <interface>
+function is_wireless() {
+    [[ -e "/sys/class/net/${interface}/phy80211/name" ]]
+}
+
+
+# Return the physical device for the given wireless network interface
+# get_phy <interface>
+function get_phy() {
+    interface="$1"
+    if ! is_wireless "${interface}"; then
+        return 1
+    else
+        cat "/sys/class/net/${interface}/phy80211/name"
+    fi
+}
+
+
 # Create a network namespace and do basic setup.
 # create_netns <name>
 function create_netns() {
@@ -97,15 +116,33 @@ function connect_netns() {
     ip link show "${interface}" > /dev/null || \
         echo_error 9 "Fatal: Network interface '${interface}' does not exist."
     # Add the designated interface to the netns.
-    ip link set dev "${interface}" netns "${ns_name}" || \
-        echo_error 10 "Fatal: Unable to move interface '${interface}' to network namespace."
+    if ! is_wireless "${interface}"; then
+        # Non-wireless interfaces are moved with ip.
+        ip link set dev "${interface}" netns "${ns_name}" || \
+            echo_error 10 "Fatal: Unable to move interface '${interface}' to network namespace."
+    else
+        # Wireless interfaces need a special kludge.
+        # 1. Need to use iw instead of ip.
+        # 2. Need to use the physical device instead of the network interface.
+        # 3. iw needs the PID of a process inside the target namespace instead of the namespace.
+        phy="$(get_phy "${interface}")"
+        # Run sleep inside the network namespace and get its PID.
+        ip netns exec "${ns_name}" sleep 5 &
+        pid="$!"
+        # Actually move the interface.
+        iw phy "${phy}" set netns "${pid}" || \
+            echo_error 11 "Fatal: Unable to move device '${phy}' (${interface}) to network namespace."
+    fi
     # Store the name of the interface and the script for later.
     echo "interface:${interface}" >> "${state_file}_${ns_name}"
+    if [[ -n "${phy}" ]]; then
+        echo "phy:${phy}" >> "${state_file}_${ns_name}"
+    fi
     echo "script:${script}" >> "${state_file}_${ns_name}"
     # Configure the network.
     if [[ -n "${script}" ]]; then
         ip netns exec "${ns_name}" "${script}" 'up' "${interface}" || \
-            echo_error 11 "Fatal: Unable to configure network with '${script}'."
+            echo_error 12 "Fatal: Unable to configure network with '${script}'."
     fi
     return 0
 }
@@ -116,6 +153,7 @@ function connect_netns() {
 function delete_netns() {
     ns_name=$1
     interface=$(grep "^interface:" "${state_file}_${ns_name}" | cut -d: -f2)
+    phy=$(grep "^phy:" "${state_file}_${ns_name}" | cut -d: -f2)
     script=$(grep "^script:" "${state_file}_${ns_name}" | cut -d: -f2)
     # Check if the namespace exists.
     if ! netns_exists "${ns_name}"; then
@@ -128,8 +166,15 @@ function delete_netns() {
     # Remove the (physical) interface from the netns.
     # This should only be required if some process is still running in the namespace.
     if [[ -n "${interface}" ]]; then
-        ip netns exec "${ns_name}" ip link set dev "${interface}" netns 1 || \
-            echo_warning "Warning: Unable to remove '${interface}' from the namespace."
+        if [[ -z "${phy}" ]]; then
+            ip netns exec "${ns_name}" ip link set dev "${interface}" netns 1 || \
+                echo_warning "Warning: Unable to remove '${interface}' from the namespace."
+        else
+            # Note: 'netns 1' to iw means 'the network namespace where PID 1 lives', not 'network namespace 1'.
+            # However, PID 1 should always be in the global network namespace.
+            ip netns exec "${ns_name}" iw phy "${phy}" set netns 1 || \
+                echo_warning "Warning: Unable to remove device '${phy}' (${interface}) from the namespace."
+        fi
     fi
     # Remove the namespace-specific resolv.conf file
     rm -f "/etc/netns/${ns_name}/resolv.conf" || \
