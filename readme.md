@@ -35,6 +35,13 @@ can be used to change the default settings. When using a symlink (e.g. in
 `$PATH`), the config file must be in the directory where the target of the
 symlink resides (i.e. possible not in `$PATH`).
 
+For example to change the name of the default namespace, the following could be
+added to `netns.conf`.
+```sh
+# Name of the default network namespace that is used when no name is given.
+default_netns="green"
+```
+
 sudo
 ----
 
