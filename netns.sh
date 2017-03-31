@@ -104,9 +104,9 @@ function create_netns() {
 }
 
 
-# Connect a network namespace via a (physical) interface.
-# connect_netns <name> <interface> <script>
-function connect_netns() {
+# Add a (physical) interface to a network namespace.
+# add_interface <ns_name> <interface> <script>
+function add_interface() {
     ns_name="$1"
     interface="$2"
     script="$3"
@@ -274,7 +274,7 @@ case "$1" in
         fi
         interface="$1"
         create_netns "${ns_name}"
-        connect_netns "${ns_name}" "${interface}" "${script}"
+        add_interface "${ns_name}" "${interface}" "${script}"
         ;;
     stop)
         shift
