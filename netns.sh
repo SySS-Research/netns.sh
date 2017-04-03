@@ -34,7 +34,7 @@ function echo_warning() {
 # Print an error message to stderr and exit with the given exit code.
 # echo_error <exit_code> <msg> ...
 function echo_error() {
-    retval="$1"
+    local retval="$1"
     shift
     echo -ne '\e[033;31;1m' 1>&2
     echo "$@" 1>&2
@@ -46,7 +46,7 @@ function echo_error() {
 # Check if a given network namespace exists.
 # netns_exists <name>
 function netns_exists() {
-    ns_name="$1"
+    local ns_name="$1"
     # Check if a namespace named $ns_name exists.
     # Note: This can not be done with grep, as $ns_name may contain
     # metacharacters and using --fixed-string does not allow anchoring
@@ -59,7 +59,7 @@ function netns_exists() {
 # Check if a given network interface is wireless
 # is_wireless <interface>
 function is_wireless() {
-    interface="$1"
+    local interface="$1"
     [[ -e "/sys/class/net/${interface}/phy80211/name" ]]
 }
 
@@ -67,7 +67,7 @@ function is_wireless() {
 # Return the physical device for the given wireless network interface
 # get_phy <interface>
 function get_phy() {
-    interface="$1"
+    local interface="$1"
     if ! is_wireless "${interface}"; then
         return 1
     else
@@ -79,7 +79,7 @@ function get_phy() {
 # Create a network namespace and do basic setup.
 # create_netns <name>
 function create_netns() {
-    ns_name="$1"
+    local ns_name="$1"
     netns_exists "${ns_name}" && return 0
     # Create the namespace.
     ip netns add "${ns_name}" || \
@@ -108,9 +108,9 @@ function create_netns() {
 # Add a (physical) interface to a network namespace.
 # add_interface <ns_name> <interface> <script>
 function add_interface() {
-    ns_name="$1"
-    interface="$2"
-    script="$3"
+    local ns_name="$1"
+    local interface="$2"
+    local script="$3"
     # Check the parameters.
     netns_exists "${ns_name}" || \
         echo_error 8 "Fatal: Network namespace '${ns_name}' does not exist."
@@ -126,6 +126,7 @@ function add_interface() {
         # 1. Need to use iw instead of ip.
         # 2. Need to use the physical device instead of the network interface.
         # 3. iw needs the PID of a process inside the target namespace instead of the namespace.
+        local phy pid
         phy="$(get_phy "${interface}")"
         # Run sleep inside the network namespace and get its PID.
         ip netns exec "${ns_name}" sleep 5 &
@@ -152,7 +153,8 @@ function add_interface() {
 # Delete a network namespace.
 # delete_ns <name>
 function delete_netns() {
-    ns_name=$1
+    local ns_name=$1
+    local interface phy script
     interface=$(grep "^interface:" "${state_file}_${ns_name}" | cut -d: -f2)
     phy=$(grep "^phy:" "${state_file}_${ns_name}" | cut -d: -f2)
     script=$(grep "^script:" "${state_file}_${ns_name}" | cut -d: -f2)
@@ -189,11 +191,11 @@ function delete_netns() {
 # Run a command inside a network namespace.
 # run <name> <user> <cmd> [<parameters> ...]
 function run() {
-    ns_name="$1"
-    user="$2"
+    local ns_name="$1"
+    local user="$2"
     shift
     shift
-    cmd=($@)
+    local cmd=($@)
     if ! netns_exists "${ns_name}"; then
         echo_error 16 "Fatal: Namespace '${ns_name}' does not exist."
     fi
@@ -217,6 +219,7 @@ function run() {
 
 # Display a short help message.
 function usage() {
+    local me
     me=$(basename -- "$0")
 cat <<EOH
 Usage: ${me} <command> [<parameters>]
