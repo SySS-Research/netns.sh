@@ -59,6 +59,7 @@ function netns_exists() {
 # Check if a given network interface is wireless
 # is_wireless <interface>
 function is_wireless() {
+    interface="$1"
     [[ -e "/sys/class/net/${interface}/phy80211/name" ]]
 }
 
