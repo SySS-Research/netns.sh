@@ -20,7 +20,7 @@ Installation
 ============
 
 No installation is required.
-It may be desirable to make this script available in `$PATH`, possible by using
+It may be desirable to make this script available in `$PATH`, possibly by using
 a symlink.
 It may further be desirable to make a few changes to the system configuration,
 as described below.
@@ -33,7 +33,7 @@ netns.conf
 A file named `netns.conf` placed in the same directory as the file `netns.sh`
 can be used to change the default settings. When using a symlink (e.g. in
 `$PATH`), the config file must be in the directory where the target of the
-symlink resides (i.e. possible not in `$PATH`).
+symlink resides (i.e. possibly not in `$PATH`).
 
 For example to change the name of the default namespace, the following could be
 added to `netns.conf`.
@@ -79,7 +79,7 @@ netns.sh --help
 ```
 
 Firstly, it is to note that running `netns.sh` requires root privileges for
-all operations. Obtaining the via sudo is recommended as this allows dropping
+all operations. Obtaining them via sudo is recommended as this allows dropping
 privileges to the invoking user without further configuration.
 
 Setup
@@ -88,7 +88,7 @@ Setup
 When using network namespaces, the first thing to do is create a namespace and
 set it up appropriately. `netns.sh` automates this process as far as possible.
 Running the following command creates a new namespace with the default name and
-move the network interface `eth0` into the namespace.
+moves the network interface `eth0` into the namespace.
 ```sh
 netns.sh start eth0
 ```
