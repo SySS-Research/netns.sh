@@ -48,9 +48,6 @@ function echo_error() {
 function netns_exists() {
     local ns_name="$1"
     # Check if a namespace named $ns_name exists.
-    # Note: This can not be done with grep, as $ns_name may contain
-    # metacharacters and using --fixed-string does not allow anchoring
-    # the pattern.
     ip netns list | grep --quiet --fixed-string --line-regexp "${ns_name}"
     return $?
 }
