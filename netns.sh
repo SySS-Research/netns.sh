@@ -53,6 +53,21 @@ function netns_exists() {
 }
 
 
+# Check if a given network interface exists
+# is_interface <interface> [<netns>]
+function is_interface() {
+    local interface="$1"
+    local ns_name="$2"
+    if [[ -z "${ns_name}" ]]; then
+        ip link show "${interface}" &> /dev/null
+        return $?
+    else
+        ip netns exec "${ns_name}" ip link show "${interface}" &> /dev/null
+        return $?
+    fi
+}
+
+
 # Check if a given network interface is wireless
 # is_wireless <interface>
 function is_wireless() {
@@ -110,14 +125,14 @@ function add_interface() {
     local script="$3"
     # Check the parameters.
     netns_exists "${ns_name}" || \
-        echo_error 8 "Fatal: Network namespace '${ns_name}' does not exist."
-    ip link show "${interface}" > /dev/null || \
-        echo_error 9 "Fatal: Network interface '${interface}' does not exist."
+        { echo_warning "Fatal: Network namespace '${ns_name}' does not exist."; return 8; }
+    is_interface "${interface}" || \
+        { echo_warning "Fatal: Network interface '${interface}' does not exist."; return 9; }
     # Add the designated interface to the netns.
     if ! is_wireless "${interface}"; then
         # Non-wireless interfaces are moved with ip.
         ip link set dev "${interface}" netns "${ns_name}" || \
-            echo_error 10 "Fatal: Unable to move interface '${interface}' to network namespace."
+            { echo_warning "Fatal: Unable to move interface '${interface}' to network namespace '${ns_name}'."; return 10; }
     else
         # Wireless interfaces need a special kludge.
         # 1. Need to use iw instead of ip.
@@ -130,35 +145,44 @@ function add_interface() {
         pid="$!"
         # Actually move the interface.
         iw phy "${phy}" set netns "${pid}" || \
-            echo_error 11 "Fatal: Unable to move device '${phy}' (${interface}) to network namespace."
+            { echo_warning "Fatal: Unable to move device '${phy}' (${interface}) to network namespace '${ns_name}'."; return 11; }
     fi
     # Store the name of the interface and the script for later.
-    echo "interface:${interface}" >> "${state_file}_${ns_name}"
+    id="$(sha224sum <<< "${interface}" | cut -d' ' -f1)"
+    echo "interface_${id}:${interface}" >> "${state_file}_${ns_name}"
     if [[ -n "${phy}" ]]; then
-        echo "phy:${phy}" >> "${state_file}_${ns_name}"
+        echo "phy_${id}:${phy}" >> "${state_file}_${ns_name}"
     fi
-    echo "script:${script}" >> "${state_file}_${ns_name}"
+    echo "script_${id}:${script}" >> "${state_file}_${ns_name}"
     # Configure the network.
     if [[ -n "${script}" ]]; then
         ip netns exec "${ns_name}" "${script}" 'up' "${interface}" || \
-            echo_error 12 "Fatal: Unable to configure network with '${script}'."
+            { echo_warning "Warning: Unable to configure interface '${interface}' with '${script}'."; return 12; }
     fi
     return 0
 }
 
 
-# Delete a network namespace.
-# delete_ns <name>
-function delete_netns() {
-    local ns_name=$1
-    local interface phy script
-    interface=$(grep "^interface:" "${state_file}_${ns_name}" | cut -d: -f2)
-    phy=$(grep "^phy:" "${state_file}_${ns_name}" | cut -d: -f2)
-    script=$(grep "^script:" "${state_file}_${ns_name}" | cut -d: -f2)
+# Remove an interface from a network namespace
+# remove_interface <ns_name> <interface>
+function remove_interface() {
+    local ns_name="$1"
+    local interface="$2"
+    local id phy script
     # Check if the namespace exists.
     if ! netns_exists "${ns_name}"; then
-        return
+        echo_warning "Error: Network namespace '${ns_name}' does not exist."
+        return 24
     fi
+    id="$(grep -Po "(?<=^interface_)([0-9a-f]*)(?=:${interface}$)" "${state_file}_${ns_name}")"
+    phy=$(grep -Po "(?<=^phy_${id}:).*" "${state_file}_${ns_name}")
+    script=$(grep -Po "(?<=^script_${id}:).*" "${state_file}_${ns_name}")
+    # Check if the interface exists.
+    if ! is_interface "${interface}" "${ns_name}"; then
+        echo_warning "Error: Interface '${interface}' not found in namespace '${ns_name}'."
+        return 25
+    fi
+    # Bring the interface down using the script.
     if [[ -n "${script}" ]]; then
         ip netns exec "${ns_name}" "${script}" 'down' "${interface}" || \
             echo_warning "Warning: Unable to bring '${interface}' down with ${script}."
@@ -176,12 +200,35 @@ function delete_netns() {
                 echo_warning "Warning: Unable to remove device '${phy}' (${interface}) from the namespace."
         fi
     fi
+    # Remove the entries from the state file.
+    sed -i -e "/_${id}:/d" "${state_file}_${ns_name}" || \
+        echo_warning "Warning: Unable to remove '${interface}' from the state file."
+    return 0
+}
+
+
+# Delete a network namespace.
+# delete_ns <name>
+function delete_netns() {
+    local ns_name=$1
+    local interfaces
+    interfaces=($(grep "^interface_[0-9a-f]*:" "${state_file}_${ns_name}" | cut -d: -f2))
+    # Check if the namespace exists.
+    if ! netns_exists "${ns_name}"; then
+        echo_warning "Error: Network namespace '${ns_name}' does not exist."
+        return 32
+    fi
+    for interface in "${interfaces[@]}"; do
+        remove_interface "${ns_name}" "${interface}"
+    done
     # Remove the namespace-specific resolv.conf file
     rm -f "/etc/netns/${ns_name}/resolv.conf" || \
         echo_warning 'Warning: Unable to remove resolv.conf for the network namespace.'
     # Delete the namespace.
     ip netns delete "${ns_name}" || \
         echo_warning "Warning: Unable to delete namespace '${ns_name}'."
+    # Delete the state file.
+    rm -f -- "${state_file}_${ns_name}"
 }
 
 
@@ -221,17 +268,25 @@ function usage() {
 cat <<EOH
 Usage: ${me} <command> [<parameters>]
  Commands:
-  start [-s|--script <command>|none] [<name>] <interface>
-      Creates the namespace and moves the interface into the namespace.
-      The interface will not be available outside of the namespace.
-      Use --script to select a command to bring up and down the interface
-      within the namespace. It will be invoked with the parameter 'up' or
-      'down' respectively and the name of the interface.
-      If script is 'none' the interface is left unconfigured.
+  start [-n|--netns <name>] [-s|--script <command>|none] <interface> [<interface> [...]]
+      Creates the namespace and moves the interface(s) into the namespace.
+      The interface(s) will not be available outside of the namespace.
+      Use --script to select a command to bring up and down the interface(s)
+      within the namespace. It will be invoked for each interface separately
+      with the parameter 'up' or 'down' respectively and the name of the
+      interface.
+      If script is 'none' the interfaces are left unconfigured.
       If script is not given '${script}' is assumed.
-  stop [<name>]
-      Removes the namespace and frees the interface.
-  run [-u|--user <user>] [<name>] <command>
+  add [-n|--netns <name>] [-s|--script <command>|none] <interface> [<interface> [...]]
+      Adds the given interface(s) to an existing namespace.
+      See 'start' for a description of the parameters.
+  remove [-n|--netns <name>] <interface> [<interface> [...]]
+      Removes the given interface(s) from the namespace and makes them globally
+      available again. The interfaces are brought down using the same script
+      that was used to bring them up.
+  stop [-n|--netns <name>]
+      Removes the namespace and frees the interface(s).
+  run [-n|--netns <name>] [-u|--user <user>] <command>
       Runs the given command within the namespace.
       If command is not given, '${SHELL}' is assumed.
       The command runs with the privileges of the given user. If the user is
@@ -253,58 +308,168 @@ fi
 
 # Parse the command line parameters.
 case "$1" in
-    start)
+    start|add)
+        action="$1"
         shift
-        if [[ "$1" == '-s' ]] || [[ "$1" == '--script' ]]; then
-            script="$2"
-            if [[ "${script}" == 'none' ]]; then
-                script=''
-            fi
+        ns_name="${default_netns}"
+        while [[ "$#" -gt 0 ]]; do
+            case "$1" in
+                -n|--netns|--netns=*)
+                    if [[ "$1" == --netns=* ]]; then
+                        ns_name="${1#--netns=}"
+                    else
+                        ns_name="$2"
+                        shift
+                    fi
+                    ;;
+                -s|--script|--script=*)
+                    if [[ "$1" == --script=* ]]; then
+                        script="${1#--script=}"
+                    else
+                        script="$2"
+                        shift
+                    fi
+                    if [[ "${script}" == 'none' ]]; then
+                        script=''
+                    fi
+                    ;;
+                --)
+                    break
+                    ;;
+                -*)
+                    echo_error 1 "Unknown parameter '$1'"
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
             shift
-            shift
-        fi
-        if [[ $# -lt 1 || $# -gt 2 ]]; then
+        done
+        if [[ $# -lt 1 ]]; then
             usage
             exit 1
         fi
-        if [[ $# == 2 ]]; then
-            ns_name="$1"
-            shift
+        interfaces=($@)
+        # Check if all interfaces exist before doing anything.
+        for interface in "${interfaces[@]}"; do
+            if ! is_interface "${interface}"; then
+                echo_error 1 "Unknown interface'${interface}'."
+            fi
+        done
+        if [[ "${action}" == 'start' ]]; then
+            # Create the namespace.
+            create_netns "${ns_name}"
         else
-            ns_name="${default_netns}"
+            # Check if the namespace exists but do not create it.
+            if ! netns_exists "${ns_name}"; then
+                echo_error 1 "Network namespace '${ns_name}' does not exist."
+            fi
         fi
-        interface="$1"
-        create_netns "${ns_name}"
-        add_interface "${ns_name}" "${interface}" "${script}"
+        # Add the interfaces.
+        for interface in "${interfaces[@]}"; do
+            add_interface "${ns_name}" "${interface}" "${script}"
+        done
+        ;;
+    remove)
+        shift
+        ns_name="${default_netns}"
+        while [[ "$#" -gt 0 ]]; do
+            case "$1" in
+                -n|--netns|--netns=*)
+                    if [[ "$1" == --netns=* ]]; then
+                        ns_name="${1#--netns=}"
+                    else
+                        ns_name="$2"
+                        shift
+                    fi
+                    ;;
+                --)
+                    break
+                    ;;
+                -*)
+                    echo_error 1 "Unknown parameter '$1'"
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
+            shift
+        done
+        if [[ $# -lt 1 ]]; then
+            usage
+            exit 1
+        fi
+        interfaces=($@)
+        # Remove the interfaces.
+        for interface in "${interfaces[@]}"; do
+            remove_interface "${ns_name}" "${interface}"
+        done
         ;;
     stop)
         shift
+        ns_name="${default_netns}"
+        while [[ "$#" -gt 0 ]]; do
+            case "$1" in
+                -n|--netns|--netns=*)
+                    if [[ "$1" == --netns=* ]]; then
+                        ns_name="${1#--netns=}"
+                    else
+                        ns_name="$2"
+                        shift
+                    fi
+                    ;;
+                --)
+                    break
+                    ;;
+                -*)
+                    echo_error 1 "Unknown parameter '$1'"
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
+            shift
+        done
         if [[ $# -gt 1 ]]; then
             usage
             exit 1
-        fi
-        if [[ $# == 1 ]]; then
-            ns_name=$1
-            shift
-        else
-            ns_name="${default_netns}"
         fi
         delete_netns "${ns_name}"
         ;;
     run)
         shift
         user="${default_user:-${SUDO_USER:-${USER}}}"
-        if [[ "$1" == '-u' ]] || [[ "$1" == '--user' ]]; then
-            user="$2"
+        ns_name="${default_netns}"
+        while [[ "$#" -gt 0 ]]; do
+            case "$1" in
+                -n|--netns|--netns=*)
+                    if [[ "$1" == --netns=* ]]; then
+                        ns_name="${1#--netns=}"
+                    else
+                        ns_name="$2"
+                        shift
+                    fi
+                    ;;
+                -u|--user|--user=*)
+                    if [[ "$1" == --user=* ]]; then
+                        user="${1#--user=}"
+                    else
+                        user="$2"
+                        shift
+                    fi
+                    ;;
+                --)
+                    break
+                    ;;
+                -*)
+                    echo_error 1 "Unknown parameter '$1'"
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
             shift
-            shift
-        fi
-        if [[ -n "$1" ]] && netns_exists "$1"; then
-            ns_name="$1"
-            shift
-        else
-            ns_name="${default_netns}"
-        fi
+        done
         cmd=($@)
         [[ -z "${cmd[@]}" ]] && cmd=("${SHELL}")
         run "${ns_name}" "${user}" "${cmd[@]}"

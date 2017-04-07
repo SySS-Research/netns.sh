@@ -92,18 +92,28 @@ moves the network interface `eth0` into the namespace.
 ```sh
 netns.sh start eth0
 ```
+Multiple network interfaces can be moved into the namespace:
+```sh
+netns.sh start eth0 eth1 eth2
+```
+Interfaces can be added and removed after the namespace was created:
+```sh
+netns.sh add eth3
+netns.sh remove eth0
+```
+
 To create a namespace with a different name (e.g. `green`) use something like
 the following:
 ```sh
-netns.sh start green eth0
+netns.sh start -n green eth0
 ```
 `netns.sh` is capable of managing multiple namespaces and uses the name to
 identify them. All commands that should not operate on the default namespace
 require the target namespace's name.
 
-Once the namespace is created, the network interface is no longer available
+Once a network interface is moved to a namespace, it is no longer available
 outside of the namespace.
-`netns.sh` tries to configure the network interface inside the namespace using
+`netns.sh` tries to configure the network interfaces inside the namespace using
 DHCP. The network configuration can be customised using the parameter
 `--script` (or `-s`) or using the config file.
 Refer to section [Network Configuration](#network-configuration) below for
@@ -119,16 +129,12 @@ netns.sh run ip addr
 ```
 To view the network configuration in the `green` namespace:
 ```sh
-netns.sh run green ip addr
+netns.sh run -n green ip addr
 ```
 The command can be omitted. In this case, an interactive shell is started.
 ```sh
 netns.sh run
 ```
-Note that the first parameter to `run` is interpreted as a namespace name if a
-namespace with that name currently exists. If no such namespace exists, it is
-interpreted as a command to run.
-If this causes issues for you, you should rethink how you name your namespaces.
 
 Before running the given command inside the namespace, `netns.sh` attempts to
 drop privileges. The parameter `--user` may be used to select the
@@ -143,17 +149,19 @@ Cleanup
 
 Network namespaces are not persistent across reboots. However, it may not
 always be convenient to reboot the system in order to free the respective
-network interface.
-Fortunately, `netns.sh` provides an easy way to destroy and clean up a
-namespace. To delete the default namespace:
+network interfaces.
+As mentioned in section [Setup](#setup) above, interfaces can be removed from
+an existing namespace.
+Furthermore, it is possible to destroy and clean up a namespace, freeing all
+interfaces at once. To delete the default namespace:
 ```sh
 netns.sh stop
 ```
 As usual, a name can/must be given to remove a namespace other than the default
 one. No usage example is provided here.
 
-When the `stop` command is invoked, the network interface within the namespace
-is brought down and then removed from the namespace.
+When the `stop` command is invoked, the network interfaces within the namespace
+are brought down and then removed from the namespace.
 Finally, the namespace is deleted and the namespace-specific `resolv.conf` file
 is deleted.
 Note that this file remains if the system is shut down without invoking the
