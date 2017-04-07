@@ -169,6 +169,8 @@ Network Configuration
 Configuring the network interface within the network namespace is done via a
 script. `netns.sh` comes with a simple script capable of bringing up the
 interface using `dhclient`.
+Note that `dhclient` is unable to properly write `resolv.conf` inside network
+namespaces on most distributions.
 
 For other means of configuring the network, a new script should be written.
 The script receives two parameters. The first is the action to perform and is
