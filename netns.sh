@@ -156,6 +156,7 @@ function add_interface() {
     echo "script_${id}:${script}" >> "${state_file}_${ns_name}"
     # Configure the network.
     if [[ -n "${script}" ]]; then
+        export NETNS="${ns_name}"
         ip netns exec "${ns_name}" "${script}" 'up' "${interface}" || \
             { echo_warning "Warning: Unable to configure interface '${interface}' with '${script}'."; return 12; }
     fi
@@ -184,6 +185,7 @@ function remove_interface() {
     fi
     # Bring the interface down using the script.
     if [[ -n "${script}" ]]; then
+        export NETNS="${ns_name}"
         ip netns exec "${ns_name}" "${script}" 'down' "${interface}" || \
             echo_warning "Warning: Unable to bring '${interface}' down with ${script}."
     fi

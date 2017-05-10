@@ -42,6 +42,36 @@ added to `netns.conf`.
 default_netns="green"
 ```
 
+dhclient
+--------
+
+By default, `netns.sh` uses `dhclient` to configure the network inside the
+network namespace. (See [Network Configuration](#network-configuration) below
+for details).
+
+Unfortunately, `dhclient` on most Linux distributions (with the notable
+exception of Gentoo) fails to set up `/etc/resolv.conf` within a network
+namespace. It usually produces an error message such as
+```
+mv: cannot move '/etc/resolv.conf.dhclient-new' to '/etc/resolv.conf': Device or resource busy
+```
+
+The file `dhclient-enter-hooks` provided within this repository can be used to
+solve this. It should be placed in `/etc/dhcp/` or `/etc/` (distribution
+specific). Or, possibly, somewhere else. The correct location can be found in
+the source code of `/sbin/dhclient-script`.
+
+Once the file is moved/copied/linked/... there, `dhclient` should just work™.
+However, the hook overrides the default function that creates
+`/etc/resolv.conf`. The function within the hook may not be appropriate for all
+environments due to varying distribution specific modifications. Thus,
+system-specific adjustment may be necessary on a case-by-case basis.
+Note that there is always the option of using another DHCP client.
+
+The provided hook will only trigger when `dhclient` is run by `netns.sh` (or
+within an environment that sufficiently mimics `netns.sh`) in order to avoid
+issues with other system components.
+
 sudo
 ----
 
@@ -56,7 +86,7 @@ allow the export.
 This can be achieved by adding the following line to one of the sudoers files:
 
 ```
-Defaults! env_keep += "NETNS"
+Defaults env_keep += "NETNS"
 ```
 
 Note: It may be advisable to restrict this setting to the `netns.sh` script by
@@ -177,8 +207,6 @@ Network Configuration
 Configuring the network interface within the network namespace is done via a
 script. `netns.sh` comes with a simple script capable of bringing up the
 interface using `dhclient`.
-Note that `dhclient` is unable to properly write `resolv.conf` inside network
-namespaces on most distributions.
 
 For other means of configuring the network, a new script should be written.
 The script receives two parameters. The first is the action to perform and is
