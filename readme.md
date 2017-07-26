@@ -12,9 +12,12 @@ Requirements
 * grep
 * sudo
 * iproute2
-* dhclient (optional, package `net-misc/dhcp` on Gentoo,
-   `isc-dhcp-client` on Debian, `extra/dhclient` on Arch)
-* iw (optional)
+* a DHCP client, such as (optional, for DHCP support)
+ * dhclient ( package `net-misc/dhcp` on Gentoo, `isc-dhcp-client` on Debian,
+   `extra/dhclient` on Arch)
+ * udhcpc (package `sys-app/busybox` on Gentoo, `busybox` on Debian,
+   `community/busybox` on Arch)
+* iw (optional, for wireless interface support)
 
 Installation
 ============
@@ -205,8 +208,8 @@ Network Configuration
 ---------------------
 
 Configuring the network interface within the network namespace is done via a
-script. `netns.sh` comes with a simple script capable of bringing up the
-interface using `dhclient`.
+script. `netns.sh` comes with two simple scripts capable of bringing up the
+interface using `dhclient` or `udhcpc`, respectively.
 
 For other means of configuring the network, a new script should be written.
 The script receives two parameters. The first is the action to perform and is
