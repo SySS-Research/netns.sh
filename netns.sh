@@ -309,6 +309,14 @@ if [[ $UID -gt 0 ]]; then
     exit 1
 fi
 
+# Check if we are in a namespace.
+current_namespace="$(ip netns identify)"
+if [[ -n "${current_namespace}" ]]; then
+    echo_warning "This script should be used from the global namespace only. It currently runs in the namespace '${current_namespace}'."
+    echo_warning "Will proceed anyway, but if anything goes haywire, don't come complaining."
+fi
+unset current_namespace
+
 # Parse the command line parameters.
 case "$1" in
     start|add)
