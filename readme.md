@@ -112,8 +112,8 @@ netns.sh --help
 ```
 
 Firstly, it is to note that running `netns.sh` requires root privileges for
-all operations. Obtaining them via sudo is recommended as this allows dropping
-privileges to the invoking user without further configuration.
+all operations. Obtaining them via sudo or pkexec is recommended as this allows
+dropping privileges to the invoking user without further configuration.
 
 Setup
 -----
@@ -173,9 +173,9 @@ Before running the given command inside the namespace, `netns.sh` attempts to
 drop privileges. The parameter `--user` may be used to select the
 user account the command should run as.
 If it is not given, the default user from the configuration file is used.
-If no user was set in the configuration file, the user invoking `sudo` is used
-instead. Failing that as well, `netns.sh` falls back to the user from the
-environment variable `$USER`.
+If no user was set in the configuration file, the user invoking `sudo` or
+`pkexec` is used instead. Failing that as well, `netns.sh` falls back to the
+user from the environment variable `$USER`.
 
 Cleanup
 -------

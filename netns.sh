@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Default and configuratio values, can be overridden in netns.conf
+# Default and configuration values, can be overridden in netns.conf
 
 # Name of the default network namespace that is used when no name is given.
 default_netns="default"
@@ -292,7 +292,8 @@ Usage: ${me} <command> [<parameters>]
       Runs the given command within the namespace.
       If command is not given, '${SHELL}' is assumed.
       The command runs with the privileges of the given user. If the user is
-      not specified, '${default_user:-${SUDO_USER:-${USER}}}' is assumed.
+      not specified, it is obtained from the config file (${default_user:-not set}) or from
+      pkexec/sudo, (in that order of priority) depending on what is available.
  The name of the network namespace to use is optional for all commands.
  If it is not given, the default value '${default_netns}' is assumed.
  Note: ${me} requires root privileges. It uses sudo to automatically drop
@@ -440,7 +441,8 @@ case "$1" in
         ;;
     run)
         shift
-        user="${default_user:-${SUDO_USER:-${USER}}}"
+        [[ -n "${PKEXEC_UID}" ]] && PKEXEC_USER="$(id -un "${PKEXEC_UID}")"
+        user="${default_user:-${PKEXEC_USER:-${SUDO_USER:-${USER}}}}"
         ns_name="${default_netns}"
         while [[ "$#" -gt 0 ]]; do
             case "$1" in
