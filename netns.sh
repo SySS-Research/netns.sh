@@ -364,7 +364,7 @@ case "$1" in
         # Check if all interfaces exist before doing anything.
         for interface in "${interfaces[@]}"; do
             if ! is_interface "${interface}"; then
-                echo_error 1 "Unknown interface'${interface}'."
+                echo_error 1 "Unknown interface '${interface}'."
             fi
         done
         if [[ "${action}" == 'start' ]]; then
