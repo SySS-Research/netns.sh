@@ -13,7 +13,7 @@ Requirements
 * sudo
 * iproute2
 * a DHCP client, such as (optional, for DHCP support)
- * dhclient ( package `net-misc/dhcp` on Gentoo, `isc-dhcp-client` on Debian,
+ * dhclient (package `net-misc/dhcp` on Gentoo, `isc-dhcp-client` on Debian,
    `extra/dhclient` on Arch)
  * udhcpc (package `sys-app/busybox` on Gentoo, `busybox` on Debian,
    `community/busybox` on Arch)
@@ -64,7 +64,9 @@ solve this. It should be placed in `/etc/dhcp/` or `/etc/` (distribution
 specific). Or, possibly, somewhere else. The correct location can be found in
 the source code of `/sbin/dhclient-script`.
 
-Once the file is moved/copied/linked/... there, `dhclient` should just work™.
+Once the file is moved/copied/linked/... there, and sudo is configured to
+preserve the `$NETNS` environment variable (see [below](#sudo)), `dhclient`
+should just work™.
 However, the hook overrides the default function that creates
 `/etc/resolv.conf`. The function within the hook may not be appropriate for all
 environments due to varying distribution specific modifications. Thus,
