@@ -241,7 +241,7 @@ function run() {
     local user="$2"
     shift
     shift
-    local cmd=($@)
+    local cmd=("$@")
     if ! netns_exists "${ns_name}"; then
         echo_error 16 "Fatal: Namespace '${ns_name}' does not exist."
     fi
@@ -482,7 +482,7 @@ case "$1" in
             esac
             shift
         done
-        cmd=($@)
+        cmd=("$@")
         [[ -z "${cmd[@]}" ]] && cmd=("${SHELL}")
         run "${ns_name}" "${user}" "${cmd[@]}"
         ;;
