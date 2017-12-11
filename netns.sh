@@ -290,7 +290,7 @@ Usage: ${me} <command> [<parameters>]
       Removes the namespace and frees the interface(s).
   run [-n|--netns <name>] [-u|--user <user>] <command>
       Runs the given command within the namespace.
-      If command is not given, '${SHELL}' is assumed.
+      If command is not given, '${SHELL:-/bin/sh}' is assumed.
       The command runs with the privileges of the given user. If the user is
       not specified, it is obtained from the config file (${default_user:-not set}) or from
       pkexec/sudo, (in that order of priority) depending on what is available.
@@ -483,7 +483,7 @@ case "$1" in
             shift
         done
         cmd=("$@")
-        [[ -z "${cmd[@]}" ]] && cmd=("${SHELL}")
+        [[ -z "${cmd[@]}" ]] && cmd=("${SHELL:-/bin/sh}")
         run "${ns_name}" "${user}" "${cmd[@]}"
         ;;
     *)
