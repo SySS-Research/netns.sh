@@ -17,6 +17,8 @@ Requirements
    `extra/dhclient` on Arch)
  * udhcpc (package `sys-app/busybox` on Gentoo, `busybox` on Debian,
    `community/busybox` on Arch)
+ * dhcpcd (package `net-misc/dhcpcd` on Gentoo, `dhcpcd5` on Debian,
+   `core/dhcpcd` on Arch)
 * iw (optional, for wireless interface support)
 
 Installation
@@ -210,8 +212,8 @@ Network Configuration
 ---------------------
 
 Configuring the network interface within the network namespace is done via a
-script. `netns.sh` comes with two simple scripts capable of bringing up the
-interface using `dhclient` or `udhcpc`, respectively.
+script. `netns.sh` comes with three simple scripts capable of bringing up the
+interface using `dhclient`, `udhcpc` or `dhcpcd`, respectively.
 
 For other means of configuring the network, a new script should be written.
 The script receives two parameters. The first is the action to perform and is
