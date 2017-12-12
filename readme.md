@@ -214,6 +214,8 @@ Network Configuration
 Configuring the network interface within the network namespace is done via a
 script. `netns.sh` comes with three simple scripts capable of bringing up the
 interface using `dhclient`, `udhcpc` or `dhcpcd`, respectively.
+There is also a script that runs `dnsmasq` to provide DHCP and DNS via the
+given interface.
 
 For other means of configuring the network, a new script should be written.
 The script receives two parameters. The first is the action to perform and is
