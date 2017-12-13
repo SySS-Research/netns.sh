@@ -9,6 +9,6 @@ if [[ "${action}" == 'up' ]]; then
     # Bring the interface up with dhcp
     dhcpcd -e NETNS="$NETNS" "${interface}"
 else
-    # Stop dhclient
+    # Stop dhcpcd
     dhcpcd -x "${interface}"
 fi
