@@ -32,8 +32,8 @@ log-facility="${file_path}/${log_file}"
 log-queries
 EOF
     ip addr add 192.168.0.1/24 dev "${interface}"
-    ip route add 224.0.0.0/4 dev "${interface}"
     ip link set dev "${interface}" up
+    ip route add 224.0.0.0/4 dev "${interface}"
     dnsmasq -x "${file_path}/${pid_file}" -C "${file_path}/${conf_file}"
 
 else
