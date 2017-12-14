@@ -48,7 +48,8 @@ function echo_error() {
 function netns_exists() {
     local ns_name="$1"
     # Check if a namespace named $ns_name exists.
-    ip netns list | grep --quiet --fixed-string --line-regexp "${ns_name}"
+    # Note: Namespaces with a veth pair are listed with '(id: 0)' (or something). We need to remove this before looking for the namespace name.
+    ip netns list | sed 's/ *(id: [0-9]\+)$//' | grep --quiet --fixed-string --line-regexp "${ns_name}"
     return $?
 }
 
