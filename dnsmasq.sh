@@ -5,7 +5,7 @@
 # The DHCP address range is hard-coded for simplicity but can be changed if needed.
 
 # Path where all dnsmasq-related temporary files are stored.
-file_path="/tmp/${NETNS}"
+file_path="/tmp/${NETNS:-netns}"
 # Name of the config file.
 conf_file="dnsmasq.conf"
 # Name of the log file.
