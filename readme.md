@@ -13,12 +13,12 @@ Requirements
 * sudo
 * iproute2
 * a DHCP client, such as (optional, for DHCP support)
- * dhclient (package `net-misc/dhcp` on Gentoo, `isc-dhcp-client` on Debian,
-   `extra/dhclient` on Arch)
- * udhcpc (package `sys-app/busybox` on Gentoo, `busybox` on Debian,
-   `community/busybox` on Arch)
- * dhcpcd (package `net-misc/dhcpcd` on Gentoo, `dhcpcd5` on Debian,
-   `core/dhcpcd` on Arch)
+    * dhclient (package `net-misc/dhcp` on Gentoo, `isc-dhcp-client` on Debian,
+      `extra/dhclient` on Arch)
+    * udhcpc (package `sys-app/busybox` on Gentoo, `busybox` on Debian,
+      `community/busybox` on Arch)
+    * dhcpcd (package `net-misc/dhcpcd` on Gentoo, `dhcpcd5` on Debian,
+      `core/dhcpcd` on Arch)
 * iw (optional, for wireless interface support)
 
 Installation
