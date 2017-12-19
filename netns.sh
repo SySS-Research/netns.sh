@@ -12,7 +12,7 @@ state_file="/run/netns"
 # Default script to bring up and down the interface within the namespace.
 script="$(dirname -- "$(realpath -- "$0")")/dhclient.sh"
 
-# Default user to run commands as within the namespace
+# Default user to run commands as within the namespace.
 #default_user='pentest'
 
 # Read the values from netns.conf
@@ -104,7 +104,7 @@ function create_netns() {
         rm -- "/etc/netns/${ns_name}/resolv.conf" || \
             echo_error 4 'Fatal: Unable to remove old resolv.conf for the network namespace.'
     fi
-    (set -o noclobber; > "/etc/netns/${ns_name}/resolv.conf") || \
+    (set -o noclobber; : > "/etc/netns/${ns_name}/resolv.conf") || \
         echo_error 5 'Fatal: Unable to setup resolv.conf for the network namespace.'
     # Bring up the lo interface inside the namespace.
     ip netns exec "${ns_name}" ip link set dev lo up || \
@@ -113,7 +113,7 @@ function create_netns() {
     if [[ -e "${state_file}_${ns_name}" ]]; then
         rm -- "${state_file}_${ns_name}"
     fi
-    (set -o noclobber; > "${state_file}_${ns_name}")
+    (set -o noclobber; : > "${state_file}_${ns_name}")
     return 0
 }
 
@@ -484,7 +484,7 @@ case "$1" in
             shift
         done
         cmd=("$@")
-        [[ -z "${cmd[@]}" ]] && cmd=("${SHELL:-/bin/sh}")
+        [[ -z "${cmd[*]}" ]] && cmd=("${SHELL:-/bin/sh}")
         run "${ns_name}" "${user}" "${cmd[@]}"
         ;;
     *)
