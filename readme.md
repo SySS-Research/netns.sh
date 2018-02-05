@@ -7,7 +7,7 @@ Requirements
 ============
 
 * Linux >= 2.6.24
-* bash
+* bash >= 4
 * coreutils
 * grep
 * sudo
@@ -20,6 +20,8 @@ Requirements
     * dhcpcd (package `net-misc/dhcpcd` on Gentoo, `dhcpcd5` on Debian,
       `core/dhcpcd` on Arch)
 * iw (optional, for wireless interface support)
+* procps, inotify-tools (optional, for automatically repairing DNS information
+  when broken by NetworkManager or similar)
 
 Installation
 ============
@@ -78,6 +80,76 @@ Note that there is always the option of using another DHCP client.
 The provided hook will only trigger when `dhclient` is run by `netns.sh` (or
 within an environment that sufficiently mimics `netns.sh`) in order to avoid
 issues with other system components.
+
+NetworkManager
+--------------
+
+If NetworkManager is used to manage the network connections in the main
+namespace, this may, unfortunately, effect network namespaces as well.
+In particular, connecting/disconnecting/reconnecting in the main namespace can
+break the namespace-specific `/etc/resolv.conf` for processes, that already run
+in a network namespace. Processes started using `netns.sh run ...` afterwards
+are not affected, processes started from an already running shell (or
+something) keep their parent's broken DNS configuration.
+
+The core issue is that NetworkManager deletes and recreates `/etc/resolv.conf`
+instead of simply updating it's contents. This breaks bind mounts of that file
+which are set up by `ip netns exec`.
+
+There are three known workarounds for this situation, none of which is
+particularly clean.
+
+### Restart Everything
+
+As mentioned above, it suffices to stop all running processes in network
+namespaces and bring everything up again using `netns.sh run ...` after each
+network change in the global scope.
+
+### Repair Everything
+
+Another approach is to restore the namespace-specific `/etc/resolve.conf`
+whenever it breaks. The file `netns-repaird.sh` contains a simple daemon that
+watches for issues and fixes them automatically.
+In the default configuration, `netns.sh` starts this daemon in the background,
+but it can also be used manually.
+
+It is to note that this daemon does not only work on network namespaces managed
+by `netns.sh`, but attempts fixing *all* network namespaces on the system.
+
+The downside of this approach is that it only fixes `/etc/resolv.conf` *after*
+it breaks, but does not prevent it from breaking in the first place.
+Thus, there is always a (somewhat small) time window during which the processes
+in the network namespace have an incorrect DNS configuration.
+
+### Prevent NetworkManager from Breaking Everything
+
+NetworkManager can be configured so that it does not break DNS settings in
+network namespaces.
+This is achieved by first configuring NetworkManager to not touch
+`/etc/resolv.conf`. Second, a dispatcher script needs to be added that updates
+`/etc/resolv.conf` from the version NetworkManager maintains internally.
+
+Add the following to `/etc/NetworkManager/NetworkManager.conf`:
+```conf
+[main]
+rc-manager=unmanaged
+```
+
+Add a file called `/etc/NetworkManager/dispatcher.d/00-rc-manager.sh` (or
+similar) with the following content (or similar) and make it executable:
+```sh
+#!/bin/sh
+# This script is called whenever a connection is started, stopped, etc.
+# Unconditionally sync NetworkManager's resolv.conf into the system file.
+cat /run/NetworkManager/resolv.conf > /etc/resolv.conf
+```
+
+Since `/etc/resolv.conf` is never deleted, the namespace-specific files are not
+affected. Thus operation within the network namespace can continue
+uninterrupted.
+
+However, as this configuration affects everything that NetworkManager does, one
+should carefully consider the security implications.
 
 sudo
 ----

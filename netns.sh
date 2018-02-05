@@ -15,6 +15,14 @@ script="$(dirname -- "$(realpath -- "$0")")/dhclient.sh"
 # Default user to run commands as within the namespace.
 #default_user='pentest'
 
+# Use the supplied netns-repaird.sh to restore broken DNS settings in namespaces.
+# This may be needed if, for instance, NetworkManager is used in the global namespace.
+# See readme.md for the dependencies and make sure they are available.
+use_repaird=true
+
+# Path to netns-repaird.sh. You should not need to change this.
+repaird="$(dirname -- "$(realpath -- "$0")")/netns-repaird.sh"
+
 # Read the values from netns.conf
 config_file="$(dirname -- "$(realpath -- "$0")")/netns.conf"
 if [[ -r "${config_file}" ]]; then
@@ -114,6 +122,14 @@ function create_netns() {
         rm -- "${state_file}_${ns_name}"
     fi
     (set -o noclobber; : > "${state_file}_${ns_name}")
+    # Run the repaird.
+    if "${use_repaird}"; then
+        "${repaird}" --quiet
+        r="$?"
+        if [[ "$r" -gt 1 ]]; then
+            echo_warning 'Warning: Unable to run the repair daemon. The namespace is operational, but if the DNS settings break, they will not get fixed automatically.'
+        fi
+    fi
     return 0
 }
 
@@ -232,6 +248,11 @@ function delete_netns() {
         echo_warning "Warning: Unable to delete namespace '${ns_name}'."
     # Delete the state file.
     rm -f -- "${state_file}_${ns_name}"
+    # Stop the repair daemon, unless there are other namespaces that may depend on it.
+    if "${use_repaird}" && [[ -z "$(ip netns list)" ]]; then
+        "${repaird}" --kill || \
+            echo_warning "Warning: Could not stop repair daemon."
+    fi
 }
 
 
