@@ -85,6 +85,14 @@ EOH
     esac
 done
 
+# Check dependencies.
+for prog in inotifywait ip nsenter ps; do
+    if ! command -v "${prog}" >/dev/null; then
+        echo "Error: Missing dependency '${prog}'."
+        exit 4
+    fi
+done
+
 # Check for root privileges.
 if [[ $UID -gt 0 ]]; then
     echo 'Error: This script requires root privileges.' >&2
