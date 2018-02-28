@@ -3,6 +3,12 @@ Network namespaces allow for different network configurations for different
 processes. This makes it possible to restrict certain programs to one network
 and prevent them from accessing another network.
 
+`netns.sh` handles the task of assigning (physical) network interfaces to
+network namespaces, bringing the interfaces up and running command in
+namespaces.
+More complex setups, e.g. involving virtual ethernet interfaces, routing
+between namespaces or bridges are beyond the scope of this script.
+
 Requirements
 ============
 
@@ -49,6 +55,9 @@ added to `netns.conf`.
 default_netns="green"
 ```
 
+The full list of available configuration options can be found in the first few
+lines of `netns.sh` itself.
+
 dhclient
 --------
 
@@ -85,9 +94,9 @@ NetworkManager
 --------------
 
 If NetworkManager is used to manage the network connections in the main
-namespace, this may, unfortunately, effect network namespaces as well.
+namespace, this may, unfortunately, affect network namespaces as well.
 In particular, connecting/disconnecting/reconnecting in the main namespace can
-break the namespace-specific `/etc/resolv.conf` for processes, that already run
+break the namespace-specific `/etc/resolv.conf` for processes that already run
 in a network namespace. Processes started using `netns.sh run ...` afterwards
 are not affected, processes started from an already running shell (or
 something) keep their parent's broken DNS configuration.
@@ -145,7 +154,7 @@ cat /run/NetworkManager/resolv.conf > /etc/resolv.conf
 ```
 
 Since `/etc/resolv.conf` is never deleted, the namespace-specific files are not
-affected. Thus operation within the network namespace can continue
+affected. Thus, operation within the network namespace can continue
 uninterrupted.
 
 However, as this configuration affects everything that NetworkManager does, one
