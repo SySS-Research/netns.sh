@@ -389,6 +389,10 @@ case "$1" in
                 echo_error 1 "Unknown interface '${interface}'."
             fi
         done
+        # Check if $script seems usable before doing anything.
+        if [[ -n "${script}" ]] && ! command -v "${script}" >/dev/null; then
+            echo_error 1 "Script '${script}' not found or not executable."
+        fi
         if [[ "${action}" == 'start' ]]; then
             # Create the namespace.
             create_netns "${ns_name}"
