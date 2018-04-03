@@ -1,0 +1,61 @@
+#compdef netns.sh
+
+_namespace_names() {
+    local namespaces
+    namespaces=( ${${(f)"$( _call_program 'network namespace' ip netns list )"}% \(id: *\)} )
+    _describe -t 'network namespace' 'namespace' namespaces
+}
+
+_netns() {
+    if (( ${CURRENT} == 2 )); then
+        _values 'action' \
+            'start' \
+            'add' \
+            'remove' \
+            'stop' \
+            'run'
+    else
+        local words=("${words[@]}")
+        local CURRENT="${CURRENT}"
+        local curcontext="$curcontext" state line
+        local action
+        typeset -A opt_args
+
+        action="${words[2]}"
+        shift words
+        (( CURRENT-- ))
+
+        case "${action}" in
+            start|add)
+                integer NORMARG
+                _arguments -n -C -S -A '-*' \
+                    '(-n --netns)'{-n,--netns=}'[Name of the target namespace]:namespace:_namespace_names' \
+                    '(-s --script)'{-s,--script=}'[Command to bring the interfaces in the namespace up and down]:script:_files -g "*(*)"' \
+                    '*:network interface:{ local -a ignore; [[ "${NORMARG}" -gt 0 ]] && ignore=(${words[${NORMARG},-2]}) || ignore=(); ignore+=lo; _net_interfaces -F ignore}'
+                ;;
+            remove)
+                _arguments -C -S -A '-*' \
+                    '(-n --netns)'{-n,--netns=}'[Name of the target namespace]:namespace:_namespace_names' \
+                    '*:network interface: '
+                # Note: Completing interfaces within the namespace would be useful. However, that would mean
+                # 1. getting the name of the namespace in question, which may be obtained from the current command line, the config file or the script itself
+                # 2. getting the location of the state file from the config file or the script itself
+                # 3. getting the list of interfaces from the state file
+                # Implementing this is left to the reader as an exercise.
+                ;;
+            stop)
+                _arguments -C -S -A '-*' \
+                    '(-n --netns)'{-n,--netns=}'[Name of the target namespace]:namespace:_namespace_names'
+                ;;
+            run)
+                _arguments -C -S -A '-*' \
+                    '(-n --netns)'{-n,--netns=}'[Name of the target namespace]:namespace:_namespace_names' \
+                    '(-u --user)'{-u,--user=}'[User to run the command as]:user:_users' \
+                    '1:command:_command_names -e' \
+                    '*:arguments:{shift words ; (( CURRENT-- )); _normal}'
+                ;;
+        esac
+    fi
+}
+
+_netns "$@"

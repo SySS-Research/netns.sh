@@ -188,6 +188,10 @@ the environment variable `$NETNS`. It may be desirable to include that
 information in the shell prompt or some other suitable location for easy
 reference.
 
+Zsh users may want to put the supplied file `_netns` in a directory referenced
+by `$fpath`. This files provides a command line completion function for
+`netns.sh`.
+
 Usage
 =====
 
