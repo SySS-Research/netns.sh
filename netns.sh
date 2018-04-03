@@ -10,7 +10,7 @@ default_netns="default"
 state_file="/run/netns"
 
 # Default script to bring up and down the interface within the namespace.
-script="$(dirname -- "$(realpath -- "$0")")/dhclient.sh"
+script="$(dirname -- "$(realpath -- "$0")")/scripts/dhclient.sh"
 
 # Default user to run commands as within the namespace.
 #default_user='pentest'

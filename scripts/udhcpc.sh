@@ -7,7 +7,7 @@ interface="$2"
 
 if [[ "${action}" == 'up' ]]; then
     # Bring the interface up with dhcp
-    busybox udhcpc -s "$(dirname -- "$0")/udhcpc.script" -p "/run/udhcpc_${interface}.pid" -R -i "${interface}"
+    busybox udhcpc -s "$(dirname -- "$0")../misc/udhcpc.script" -p "/run/udhcpc_${interface}.pid" -R -i "${interface}"
 else
     # Stop udhcpc
     if [[ -f "/run/udhcpc_${interface}.pid" ]]; then
