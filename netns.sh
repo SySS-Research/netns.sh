@@ -154,14 +154,10 @@ function add_interface() {
         # Wireless interfaces need a special kludge.
         # 1. Need to use iw instead of ip.
         # 2. Need to use the physical device instead of the network interface.
-        # 3. iw needs the PID of a process inside the target namespace instead of the namespace.
-        local phy pid
+        local phy
         phy="$(get_phy "${interface}")"
-        # Run sleep inside the network namespace and get its PID.
-        ip netns exec "${ns_name}" sleep 5 &
-        pid="$!"
         # Actually move the interface.
-        iw phy "${phy}" set netns "${pid}" || \
+        iw phy "${phy}" set netns name "${ns_name}" || \
             { echo_warning "Fatal: Unable to move device '${phy}' (${interface}) to network namespace '${ns_name}'."; return 11; }
     fi
     # Store the name of the interface and the script for later.

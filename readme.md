@@ -25,7 +25,7 @@ Requirements
       `community/busybox` on Arch)
     * dhcpcd (package `net-misc/dhcpcd` on Gentoo, `dhcpcd5` on Debian,
       `core/dhcpcd` on Arch)
-* iw (optional, for wireless interface support)
+* iw >= 4.9 (optional, for wireless interface support)
 * procps, inotify-tools (optional, for automatically repairing DNS information
   when broken by NetworkManager or similar)
 
